@@ -72,7 +72,10 @@ WebVRConfig = {
   three.js 3d library
   -->
 <script src="node_modules/three/three.min.js"></script>
-
+<!-- <script src="node_modules/three/src/extras/geometries/TextGeometry.js"></script>
+<script src="node_modules/three/src/examples/js/utils/FontUtils.js"></script>
+<script src="node_modules/three/src/extras/geometries/TextGeometry.js"></script>
+<script src="node_modules/three/src/loaders/FontLoader.js"></script> -->
 <!--
   VRControls.js acquires positional information from connected VR devices and applies the transformations to a three.js camera object.
    -->
@@ -131,8 +134,8 @@ var boxMaterial = new THREE.MeshLambertMaterial({
       	color: 0x777777
     });
 var box = new THREE.Mesh(boxGeometry, boxMaterial);
-box.position.z = -1.5;
-box.position.y = -0.65;
+box.position.z = -1.3;
+box.position.y = -0.6;
 scene.add(box);
 
 var pointLight =
@@ -145,6 +148,26 @@ pointLight.position.z = 4;
 
 // add to the scene
 scene.add(pointLight);
+
+// add 3D text
+
+var font = undefined; 
+var loader = new THREE.FontLoader();
+loader.load('node_modules/three/src/fonts/helvetiker_regular.typeface.js', function ( response ) {
+	font = response;
+	createText();
+} );
+
+function createText(){
+	var shape = new THREE.TextGeometry("Game Over", {font: font});
+	var wrapper = new THREE.MeshNormalMaterial({color: 0x00ff00});
+	var words = new THREE.Mesh(shape, wrapper);
+	words.position.set(0,1,-1000)
+	scene.add(words);
+	console.log("words created");
+}
+
+
 
 // Request animation frame loop function
 var lastRender = 0;
