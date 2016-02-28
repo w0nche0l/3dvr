@@ -132,7 +132,7 @@ var boxMaterial = new THREE.MeshLambertMaterial({
     });
 var box = new THREE.Mesh(boxGeometry, boxMaterial);
 box.position.z = -1.5;
-box.position.y = -0.8;
+box.position.y = -0.65;
 scene.add(box);
 
 var pointLight =
@@ -174,35 +174,35 @@ function onKey(event) {
 window.addEventListener('keydown', onKey, true);
 
 
-(function(){var script=document.createElement('script');script.onload=function(){var stats=new Stats();stats.domElement.style.cssText='position:fixed;left:0;top:0;z-index:10000';document.body.appendChild(stats.domElement);requestAnimationFrame(function loop(){stats.update();requestAnimationFrame(loop)});};script.src='//rawgit.com/mrdoob/stats.js/master/build/stats.min.js';document.head.appendChild(script);})()
+// (function(){var script=document.createElement('script');script.onload=function(){var stats=new Stats();stats.domElement.style.cssText='position:fixed;left:0;top:0;z-index:10000';document.body.appendChild(stats.domElement);requestAnimationFrame(function loop(){stats.update();requestAnimationFrame(loop)});};script.src='//rawgit.com/mrdoob/stats.js/master/build/stats.min.js';document.head.appendChild(script);})()
 
 
-function setStats(){
+// function setStats(){
 
-	var stats = new Stats();
-	stats.setMode( 1 ); // 0: fps, 1: ms, 2: mb
+// 	var stats = new Stats();
+// 	stats.setMode( 1 ); // 0: fps, 1: ms, 2: mb
 
-	// align top-left
-	stats.domElement.style.position = 'absolute';
-	stats.domElement.style.left = '0px';
-	stats.domElement.style.top = '0px';
+// 	// align top-left
+// 	stats.domElement.style.position = 'absolute';
+// 	stats.domElement.style.left = '0px';
+// 	stats.domElement.style.top = '0px';
 
-	document.body.appendChild( stats.domElement );
+// 	document.body.appendChild( stats.domElement );
 
-	var update = function () {
+// 	var update = function () {
 
-	    stats.begin();
+// 	    stats.begin();
 
-	    // monitored code goes here
+// 	    // monitored code goes here
 
-	    stats.end();
+// 	    stats.end();
 
-	    requestAnimationFrame( update );
+// 	    requestAnimationFrame( update );
 
-	};
+// 	};
 
-	requestAnimationFrame( update );
-}
+// 	requestAnimationFrame( update );
+// }
 
 </script>
 
