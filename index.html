@@ -208,35 +208,35 @@ function onKey(event) {
 window.addEventListener('keydown', onKey, true);
 
 
-// (function(){var script=document.createElement('script');script.onload=function(){var stats=new Stats();stats.domElement.style.cssText='position:fixed;left:0;top:0;z-index:10000';document.body.appendChild(stats.domElement);requestAnimationFrame(function loop(){stats.update();requestAnimationFrame(loop)});};script.src='//rawgit.com/mrdoob/stats.js/master/build/stats.min.js';document.head.appendChild(script);setStats();})()
+(function(){var script=document.createElement('script');script.onload=function(){var stats=new Stats();stats.domElement.style.cssText='position:fixed;left:0;top:0;z-index:10000';document.body.appendChild(stats.domElement);requestAnimationFrame(function loop(){stats.update();requestAnimationFrame(loop)});};script.src='//rawgit.com/mrdoob/stats.js/master/build/stats.min.js';document.head.appendChild(script);setStats();})()
 
 
-// function setStats(){
+function setStats(){
 
-// 	var stats = new Stats();
-// 	stats.setMode( 1 ); // 0: fps, 1: ms, 2: mb
+	var stats = new Stats();
+	stats.setMode( 1 ); // 0: fps, 1: ms, 2: mb
 
-// 	// align top-left
-// 	stats.domElement.style.position = 'absolute';
-// 	stats.domElement.style.left = '0px';
-// 	stats.domElement.style.top = '0px';
+	// align top-left
+	stats.domElement.style.position = 'absolute';
+	stats.domElement.style.left = '0px';
+	stats.domElement.style.top = '0px';
 
-// 	document.body.appendChild( stats.domElement );
+	document.body.appendChild( stats.domElement );
 
-// 	var update = function () {
+	var update = function () {
 
-// 	    stats.begin();
+	    stats.begin();
 
-// 	    // monitored code goes here
+	    // monitored code goes here
 
-// 	    stats.end();
+	    stats.end();
 
-// 	    requestAnimationFrame( update );
+	    requestAnimationFrame( update );
 
-// 	};
+	};
 
-// 	requestAnimationFrame( update );
-// }
+	requestAnimationFrame( update );
+}
 
 
 
