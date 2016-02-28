@@ -125,23 +125,6 @@ var manager = new WebVRManager(renderer, effect, params);
 
 // Create 3D objects.
 
-// Add a repeating grid as a skybox.
-var boxWidth = 5;
-var loader = new THREE.TextureLoader();
-loader.load('img/box.png', onTextureLoaded);
-function onTextureLoaded(texture) {
-  texture.wrapS = THREE.RepeatWrapping;
-  texture.wrapT = THREE.RepeatWrapping;
-  texture.repeat.set(boxWidth, boxWidth);
-  var geometry = new THREE.BoxGeometry(boxWidth, boxWidth, boxWidth);
-  var material = new THREE.MeshBasicMaterial({
-    map: texture,
-    color: 0x01BE00,
-    side: THREE.BackSide
-  });
-  var skybox = new THREE.Mesh(geometry, material);
-  scene.add(skybox);
-}
 
 // set up the sphere vars
 var radius = 0.5,
@@ -237,9 +220,6 @@ function setStats(){
 
 	requestAnimationFrame( update );
 }
-
-
-
 
 </script>
 
