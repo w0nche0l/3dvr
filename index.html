@@ -140,6 +140,9 @@ box.castShadow = true;
 box.receiveShadow = true;
 scene.add(box);
 
+boxGeometry.computeBoundingBox();
+var tableTop = box.position.y + (boxGeometry.boundingBox.max.y - boxGeometry.boundingBox.min.y)/2;
+
 //Add light
 var spotLight = new THREE.SpotLight( 0xffffff );
 spotLight.position.set( 4, 4, 4 );
@@ -171,13 +174,48 @@ function createText(){
 	var words = new THREE.Mesh(shape, wrapper);
 	shape.computeBoundingBox();
     words.textWidth = shape.boundingBox.max.x - shape.boundingBox.min.x;
-	words.position.set(-words.textWidth/2+0.4,-0.5,-0.3)
+	words.position.set(-words.textWidth/2+0.4,tableTop,-0.4)
 	words.rotation.x = -Math.PI/2;
 	words.castShadow = true;
 	scene.add(words);
     
 	console.log("words created");
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -207,7 +245,6 @@ function onKey(event) {
 }
 
 window.addEventListener('keydown', onKey, true);
-
 
 // (function(){var script=document.createElement('script');script.onload=function(){var stats=new Stats();stats.domElement.style.cssText='position:fixed;left:0;top:0;z-index:10000';document.body.appendChild(stats.domElement);requestAnimationFrame(function loop(){stats.update();requestAnimationFrame(loop)});};script.src='//rawgit.com/mrdoob/stats.js/master/build/stats.min.js';document.head.appendChild(script);})()
 
