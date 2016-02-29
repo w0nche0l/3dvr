@@ -101,6 +101,7 @@ WebVRConfig = {
 // Only enable it if you actually need to.
 var renderer = new THREE.WebGLRenderer({antialias: false});
 renderer.setPixelRatio(window.devicePixelRatio);
+renderer.shadowMapEnabled = true;
 
 // Append the canvas element created by the renderer to document body element.
 document.body.appendChild(renderer.domElement);
@@ -135,18 +136,25 @@ var boxMaterial = new THREE.MeshLambertMaterial({
 var box = new THREE.Mesh(boxGeometry, boxMaterial);
 box.position.z = -1.3;
 box.position.y = -0.6;
+box.castShadow = true;
+box.receiveShadow = true;
 scene.add(box);
 
-var pointLight =
-  new THREE.PointLight(0xFFFFFF);
+//Add light
+var spotLight = new THREE.SpotLight( 0xffffff );
+spotLight.position.set( 4, 4, 4 );
 
-// set its position
-pointLight.position.x = 4;
-pointLight.position.y = 4;
-pointLight.position.z = 4;
+spotLight.castShadow = true;
 
-// add to the scene
-scene.add(pointLight);
+spotLight.shadowMapWidth = 4024;
+spotLight.shadowMapHeight = 4024;
+
+spotLight.shadowCameraNear = 0.1;
+spotLight.shadowCameraFar = 10;
+spotLight.shadowCameraFov = 30;
+
+scene.add( spotLight );
+
 
 // add 3D text
 
@@ -159,12 +167,13 @@ loader.load('node_modules/three/src/fonts/helvetiker_regular.typeface.js', funct
 
 function createText(){
 	var shape = new THREE.TextGeometry("Game Over", {font: font, size:0.05, height:0.02});
-	var wrapper = new THREE.MeshNormalMaterial({color: 0x00ff00});
+	var wrapper = new THREE.MeshLambertMaterial({color: 0x00ff00});
 	var words = new THREE.Mesh(shape, wrapper);
 	shape.computeBoundingBox();
     words.textWidth = shape.boundingBox.max.x - shape.boundingBox.min.x;
 	words.position.set(-words.textWidth/2+0.4,-0.5,-0.3)
 	words.rotation.x = -Math.PI/2;
+	words.castShadow = true;
 	scene.add(words);
     
 	console.log("words created");
