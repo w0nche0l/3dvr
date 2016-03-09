@@ -103,7 +103,7 @@ WebVRConfig = {
 
 
 <script>
-function init(){
+// function init(){
 	// Setup three.js WebGL renderer. Note: Antialiasing is a big performance hit.
 	// Only enable it if you actually need to.
 	var renderer = new THREE.WebGLRenderer({antialias: false});
@@ -148,13 +148,16 @@ function init(){
 	var UI = null;
 	var algorithm = null;
 
+	var nlj = null;
+	var nljUI = null;
+
 	//derived parameters
 	tableParams.leftEdge = -tableParams.width/2;
 	tableParams.rightEdge = tableParams.width/2;
 	tableParams.farEdge = tableParams.z-tableParams.depth/2;
 	tableParams.closeEdge = tableParams.z+tableParams.depth/2;
 	tableParams.tableTop = tableParams.y + tableParams.height/2;
-	tableParams.cursorSize = tableParams.width/200;
+	tableParams.cursorSize = tableParams.width/140;
 	var table = undefined;
 	var cursor = undefined;
 
@@ -173,10 +176,10 @@ function init(){
 
 		//Add light
 		var spotLight = new THREE.SpotLight( 0xffffff );
-		spotLight.position.set( 1, 4, 3 );
+		spotLight.position.set( 1, 4, 1 );
 
 		spotLight.castShadow = true;
-		spotLight.rotation.x = 0.4;
+		spotLight.rotation.x = Math.PI/3;
 		spotLight.rotation.y = 0.5;
 
 		spotLight.shadowMapWidth = 4024;
@@ -215,10 +218,16 @@ function init(){
 			var b = UI.buttonGrid[i];
 			var button = b.createView();
 			button.position.x = (b.leftEdge + b.rightEdge)/2;
-			button.position.y = tableParams.tableTop + b.height;
+			button.position.y = tableParams.tableTop + b.height/2;
 			button.position.z = (b.topEdge + b.bottomEdge)/2;
 			scene.add(button);
 		}
+
+		nljUI = new NestedLoopJoinUI(nlj, tableParams.tableTop);
+		nljUI.constructCubes();
+		nljUI.addCubes(scene);
+		console.log("ui finished");
+
 	};
 
 	initGeometry();
@@ -273,17 +282,6 @@ function init(){
 	  }
 	}
 
-	function createText(){
-		var shape = new THREE.TextGeometry("Game Over", {font: font, size:0.05, height:0.02});
-		var wrapper = new THREE.MeshLambertMaterial({color: 0x00ff00});
-		var words = new THREE.Mesh(shape, wrapper);
-		shape.computeBoundingBox();
-	    words.textWidth = shape.boundingBox.max.x - shape.boundingBox.min.x;
-		words.position.set(-words.textWidth/2+0.4,tableParams.tableTop,-0.4)
-		words.rotation.x = -Math.PI/2;
-		words.castShadow = true;
-		scene.add(words);
-	};
 
 	
 	function makeText(words, locationX, locationY, locationZ, size, height){
@@ -334,7 +332,7 @@ function init(){
 			if (newPositionZ > tableParams.closeEdge) {
 				newPositionZ = tableParams.closeEdge;
 			}
-
+			//console.log("mouse at" + newPositionX + ","+newPositionZ);
 			cursor.position.x = newPositionX;
 			cursor.position.z = newPositionZ;
 			UI.hover(cursor.position.x, cursor.position.z);
@@ -350,9 +348,9 @@ function init(){
       		UI.click(cursor.position.x, cursor.position.z);
       	}
 	}
-}
+// }
 
-init();
+// init();
 
 </script>
 

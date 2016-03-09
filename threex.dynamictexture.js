@@ -125,6 +125,9 @@ THREEx.DynamicTexture.prototype.drawTextCooked = function(options){
 	return this;
 
 	function computeMaxTextLength(text){
+		if(text.indexOf("\n") > -1) {
+			return text.substr(0, text.indexOf("\n")+1);
+		}
 		var maxText	= ''
 		var maxWidth	= (1-params.margin*2)*canvas.width
 		while( maxText.length !== text.length ){

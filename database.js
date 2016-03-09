@@ -25,6 +25,19 @@ DataEntry.prototype.toString = function() {
 	return JSON.stringify(this.data);
 };
 
+DataEntry.prototype.toBlockString = function() {
+	if(this.data["id"] == undefined){
+		return "Empty";
+	}
+	var str = "id:" + this.data["id"];
+	for (var key in this.data) {
+		if (key != "id") {
+			str += "\n" + key + ":" + this.data[key];
+		}
+	} 
+	return str;
+};
+
 DataEntry.clone = function(otherDataEntry) {
 	return new DataEntry(JSON.parse(JSON.stringify(otherDataEntry.getData())));
 };
@@ -94,7 +107,6 @@ DataRun.prototype.toString = function(){
 	return string;
 };
 
-//unfinished
 DataRun.prototype.randomInit = function(size, nameArray, doShuffle) {
 	this.size = size;
 	this.data = [];
@@ -179,8 +191,8 @@ NestedLoopJoinAlgorithm.prototype = Object.create(Algorithm.prototype); // See n
 NestedLoopJoinAlgorithm.prototype.constructor = NestedLoopJoinAlgorithm;
 
 NestedLoopJoinAlgorithm.prototype.randomInit = function(rSize, sSize) {
-	this.r.randomInit(rSize, ["age"]);
-	this.s.randomInit(sSize, ["happiness"]);
+	this.r.randomInit(rSize, ["a"]);
+	this.s.randomInit(sSize, ["b"]);
 };
 
 var nljpsuedo = "  For each tuple r in R do\n     For each tuple s in S do\n        If r and s satisfy the join condition\n           Then output the tuple <r,s>".split("\n");
