@@ -67,14 +67,20 @@ WebVRConfig = {
   A polyfill for Promises. Needed for IE and Edge.
   -->
 <script src="node_modules/es6-promise/dist/es6-promise.js"></script>
+<script src="tween.js"></script>
 
 <!--
   three.js 3d library
   -->
 <script src="node_modules/three/three.min.js"></script>
+<script src="3dutil.js"></script>
+<script src="ui.js"></script>
+<script src="database.js"></script>
 <script src="node_modules/three/src/extras/geometries/TextGeometry.js"></script>
 <script src="node_modules/three/examples/js/utils/FontUtils.js"></script>
 <script src="node_modules/three/src/loaders/FontLoader.js"></script>
+<script src="threex.dynamictexture.js"></script>
+
 <!--
   VRControls.js acquires positional information from connected VR devices and applies the transformations to a three.js camera object.
    -->
@@ -97,184 +103,256 @@ WebVRConfig = {
 
 
 <script>
-// Setup three.js WebGL renderer. Note: Antialiasing is a big performance hit.
-// Only enable it if you actually need to.
-var renderer = new THREE.WebGLRenderer({antialias: false});
-renderer.setPixelRatio(window.devicePixelRatio);
-renderer.shadowMapEnabled = true;
+function init(){
+	// Setup three.js WebGL renderer. Note: Antialiasing is a big performance hit.
+	// Only enable it if you actually need to.
+	var renderer = new THREE.WebGLRenderer({antialias: false});
+	renderer.setPixelRatio(window.devicePixelRatio);
+	renderer.shadowMapEnabled = true;
 
-// Append the canvas element created by the renderer to document body element.
-document.body.appendChild(renderer.domElement);
+	var domElement = renderer.domElement;
+	// Append the canvas element created by the renderer to document body element.
+	document.body.appendChild(renderer.domElement);
+	document.body.addEventListener("keyup", keyUpHandler);
+	document.addEventListener("mousemove", moveCallback, false);
 
-// Create a three.js scene.
-var scene = new THREE.Scene();
+	// Create a three.js scene.
+	var scene = new THREE.Scene();
+	// Create a three.js camera.
+	var camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 10000);
 
-// Create a three.js camera.
-var camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 10000);
+	// Apply VR headset positional data to camera.
+	var controls = new THREE.VRControls(camera);
+	// Apply VR stereo rendering to renderer.
+	var effect = new THREE.VREffect(renderer);
+	effect.setSize(window.innerWidth, window.innerHeight);
+	// Create a VR manager helper to enter and exit VR mode.
+	var params = {
+	  hideButton: false, // Default: false.
+	  isUndistorted: false // Default: false.
+	};
+	var manager = new WebVRManager(renderer, effect, params);
+	//font object
+	var font = undefined;
+	 
+	//some arbitrary parameters
+	var tableParams = {
+		width: 2,
+		height: 0.1, 
+		depth: 2,
+		x: 0,
+		y: -0.6,
+		z: -1.3,
+	};
 
-// Apply VR headset positional data to camera.
-var controls = new THREE.VRControls(camera);
+	var UI = null;
+	var algorithm = null;
 
-// Apply VR stereo rendering to renderer.
-var effect = new THREE.VREffect(renderer);
-effect.setSize(window.innerWidth, window.innerHeight);
+	//derived parameters
+	tableParams.leftEdge = -tableParams.width/2;
+	tableParams.rightEdge = tableParams.width/2;
+	tableParams.farEdge = tableParams.z-tableParams.depth/2;
+	tableParams.closeEdge = tableParams.z+tableParams.depth/2;
+	tableParams.tableTop = tableParams.y + tableParams.height/2;
+	tableParams.cursorSize = tableParams.width/200;
+	var table = undefined;
+	var cursor = undefined;
 
-// Create a VR manager helper to enter and exit VR mode.
-var params = {
-  hideButton: false, // Default: false.
-  isUndistorted: false // Default: false.
-};
-var manager = new WebVRManager(renderer, effect, params);
+	function initGeometry(){
+		// table
+		table = createBox(tableParams.width,tableParams.height,tableParams.depth, 0x777777, true);
+		table.position.z = -1.3;
+		table.position.y = -0.6;
+		table.receiveShadow = true;
+		scene.add(table);
 
-// Create 3D objects.
+		cursor = createBox(tableParams.cursorSize,tableParams.cursorSize,tableParams.cursorSize, 0xffffff,true);
+		cursor.position.y = tableParams.tableTop+ tableParams.cursorSize/2;
+		cursor.position.z = tableParams.closeEdge - tableParams.depth/20;
+		scene.add(cursor);
 
-// set up the sphere vars
-var boxGeometry = new THREE.BoxGeometry(2, 0.1, 2);
-var boxMaterial = new THREE.MeshLambertMaterial({
-      	color: 0x777777
-    });
-var box = new THREE.Mesh(boxGeometry, boxMaterial);
-box.position.z = -1.3;
-box.position.y = -0.6;
-box.castShadow = true;
-box.receiveShadow = true;
-scene.add(box);
+		//Add light
+		var spotLight = new THREE.SpotLight( 0xffffff );
+		spotLight.position.set( 1, 4, 3 );
 
-boxGeometry.computeBoundingBox();
-var tableTop = box.position.y + (boxGeometry.boundingBox.max.y - boxGeometry.boundingBox.min.y)/2;
+		spotLight.castShadow = true;
+		spotLight.rotation.x = 0.4;
+		spotLight.rotation.y = 0.5;
 
-//Add light
-var spotLight = new THREE.SpotLight( 0xffffff );
-spotLight.position.set( 4, 4, 4 );
+		spotLight.shadowMapWidth = 4024;
+		spotLight.shadowMapHeight = 4024;
 
-spotLight.castShadow = true;
+		spotLight.shadowCameraNear = 0.1;
+		spotLight.shadowCameraFar = 10;
+		spotLight.shadowCameraFov = 30;
 
-spotLight.shadowMapWidth = 4024;
-spotLight.shadowMapHeight = 4024;
+		scene.add( spotLight );
 
-spotLight.shadowCameraNear = 0.1;
-spotLight.shadowCameraFar = 10;
-spotLight.shadowCameraFov = 30;
+		// add 3D text
+		var loader = new THREE.FontLoader();
+		loader.load('node_modules/three/src/fonts/helvetiker_regular.typeface.js', function ( response ) {
+			font = response;
+			createText();
+		} );
+	};
 
-scene.add( spotLight );
+	function initAlgorithm(){
+		nlj = new NestedLoopJoinAlgorithm(20,32,4);
+		nlj.randomInit(4,12);
 
 
-// add 3D text
+	};
 
-var font = undefined; 
-var loader = new THREE.FontLoader();
-loader.load('node_modules/three/src/fonts/helvetiker_regular.typeface.js', function ( response ) {
-	font = response;
-	createText();
-} );
+	function initUI(){
+		UI = new UIFramework();
+		var nextButton = new UIButton("Next", -0.2, tableParams.closeEdge -tableParams.depth/10, 0.14,0.07);
+		nextButton.setOnClick(progress.bind(this, nlj));
+		UI.addButton(nextButton);
 
-function createText(){
-	var shape = new THREE.TextGeometry("Game Over", {font: font, size:0.05, height:0.02});
-	var wrapper = new THREE.MeshLambertMaterial({color: 0x00ff00});
-	var words = new THREE.Mesh(shape, wrapper);
-	shape.computeBoundingBox();
-    words.textWidth = shape.boundingBox.max.x - shape.boundingBox.min.x;
-	words.position.set(-words.textWidth/2+0.4,tableTop,-0.4)
-	words.rotation.x = -Math.PI/2;
-	words.castShadow = true;
-	scene.add(words);
-    
-	console.log("words created");
+
+		for(var i = 0; i < UI.buttonGrid.length; ++i) {
+			console.log("creating button");
+			var b = UI.buttonGrid[i];
+			var button = b.createView();
+			button.position.x = (b.leftEdge + b.rightEdge)/2;
+			button.position.y = tableParams.tableTop + b.height;
+			button.position.z = (b.topEdge + b.bottomEdge)/2;
+			scene.add(button);
+		}
+	};
+
+	initGeometry();
+	initAlgorithm();
+	initUI();
+
+
+	function progress(algo) {
+		if(algo.changeList.length > 0) {
+			console.log("applying changes");
+			algo.applyChanges();
+		} else {
+			console.log("calculating");
+			algo.next();
+		}
+		animateChanges(algo);
+	};
+
+	function animateChanges(algo){
+		for(var i = 0; i < algo.changeList.length; ++i) {
+			console.log("animate change!");
+		};
+
+	};
+
+	// Request animation frame loop function
+	var lastRender = 0;
+	function animate(timestamp) {
+	  var delta = Math.min(timestamp - lastRender, 500);
+	  lastRender = timestamp;
+
+	  // Update VR headset position and apply to camera.
+	  controls.update();
+
+	  // Render the scene through the manager.
+	  manager.render(scene, camera, timestamp);
+
+	  requestAnimationFrame(animate);
+
+	  TWEEN.update();
+	}
+
+	// Kick off animation loop
+	animate(performance ? performance.now() : Date.now());
+
+	window.addEventListener('keydown', onKey, true);
+
+	// Reset the position sensor when 'z' pressed.
+	function onKey(event) {
+	  if (event.keyCode == 90) { // z
+	    controls.resetSensor();
+	  }
+	}
+
+	function createText(){
+		var shape = new THREE.TextGeometry("Game Over", {font: font, size:0.05, height:0.02});
+		var wrapper = new THREE.MeshLambertMaterial({color: 0x00ff00});
+		var words = new THREE.Mesh(shape, wrapper);
+		shape.computeBoundingBox();
+	    words.textWidth = shape.boundingBox.max.x - shape.boundingBox.min.x;
+		words.position.set(-words.textWidth/2+0.4,tableParams.tableTop,-0.4)
+		words.rotation.x = -Math.PI/2;
+		words.castShadow = true;
+		scene.add(words);
+	};
+
+	
+	function makeText(words, locationX, locationY, locationZ, size, height){
+		if(size === undefined) {
+			size = 0.05;
+		}
+		if(height === undefined) {
+			height = 0.02;
+		}
+	};
+
+	function keyUpHandler(event){
+		var keyCode = ('which' in event) ? event.which : event.keyCode;
+        if (keyCode === 67) {
+        	domElement.requestPointerLock = domElement.requestPointerLock ||
+			     domElement.mozRequestPointerLock ||
+			     domElement.webkitRequestPointerLock;
+			// Ask the browser to lock the pointer
+			domElement.requestPointerLock();
+        }
+	}
+
+	function moveCallback(e) {
+		var el = document.pointerLockElement || document.mozPointerLockElement ||
+      		document.webkitPointerLockElement;
+      	if (el !== undefined) {
+      		var movementX = e.movementX ||
+			    e.mozMovementX          ||
+			    e.webkitMovementX       ||
+			    0,
+		  	movementY = e.movementY ||
+			    e.mozMovementY      ||
+			    e.webkitMovementY   ||
+			    0;
+
+			var newPositionX = cursor.position.x + tableParams.width/2000*movementX; 
+			if (newPositionX > tableParams.rightEdge) {
+				newPositionX = tableParams.rightEdge;
+			}
+			if (newPositionX < tableParams.leftEdge) {
+				newPositionX = tableParams.leftEdge;
+			}
+
+			var newPositionZ = cursor.position.z + tableParams.depth/2000*movementY; 
+			if (newPositionZ < tableParams.farEdge) {
+				newPositionZ = tableParams.farEdge;
+			}
+			if (newPositionZ > tableParams.closeEdge) {
+				newPositionZ = tableParams.closeEdge;
+			}
+
+			cursor.position.x = newPositionX;
+			cursor.position.z = newPositionZ;
+			UI.hover(cursor.position.x, cursor.position.z);
+      	}
+	}
+
+	document.addEventListener('click', onDocumentClick, false);
+
+	function onDocumentClick(event){
+		var el = document.pointerLockElement || document.mozPointerLockElement ||
+      		document.webkitPointerLockElement;
+      	if (el !== undefined && UI != null) {
+      		UI.click(cursor.position.x, cursor.position.z);
+      	}
+	}
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-// Request animation frame loop function
-var lastRender = 0;
-function animate(timestamp) {
-  var delta = Math.min(timestamp - lastRender, 500);
-  lastRender = timestamp;
-
-  // Update VR headset position and apply to camera.
-  controls.update();
-
-  // Render the scene through the manager.
-  manager.render(scene, camera, timestamp);
-
-  requestAnimationFrame(animate);
-}
-
-// Kick off animation loop
-animate(performance ? performance.now() : Date.now());
-
-// Reset the position sensor when 'z' pressed.
-function onKey(event) {
-  if (event.keyCode == 90) { // z
-    controls.resetSensor();
-  }
-}
-
-window.addEventListener('keydown', onKey, true);
-
-// (function(){var script=document.createElement('script');script.onload=function(){var stats=new Stats();stats.domElement.style.cssText='position:fixed;left:0;top:0;z-index:10000';document.body.appendChild(stats.domElement);requestAnimationFrame(function loop(){stats.update();requestAnimationFrame(loop)});};script.src='//rawgit.com/mrdoob/stats.js/master/build/stats.min.js';document.head.appendChild(script);})()
-
-
-// function setStats(){
-
-// 	var stats = new Stats();
-// 	stats.setMode( 1 ); // 0: fps, 1: ms, 2: mb
-
-// 	// align top-left
-// 	stats.domElement.style.position = 'absolute';
-// 	stats.domElement.style.left = '0px';
-// 	stats.domElement.style.top = '0px';
-
-// 	document.body.appendChild( stats.domElement );
-
-// 	var update = function () {
-
-// 	    stats.begin();
-
-// 	    // monitored code goes here
-
-// 	    stats.end();
-
-// 	    requestAnimationFrame( update );
-
-// 	};
-
-// 	requestAnimationFrame( update );
-// }
+init();
 
 </script>
 
