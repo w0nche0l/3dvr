@@ -1,8 +1,12 @@
-function createBox(width, height, depth, paramColor, shadows){
+function createBox(width, height, depth, paramColor, shadows, opacity){
 	var boxGeometry = new THREE.BoxGeometry(width, height, depth);
 	var boxMaterial = new THREE.MeshLambertMaterial({
 	      	color: paramColor
 	    });
+	if(opacity != undefined){
+		boxMaterial.transparent = true;
+		boxMaterial.opacity = opacity;
+	}
 	var box = new THREE.Mesh(boxGeometry, boxMaterial);
 	box.castShadow = shadows;
 	if(shadows == undefined) {
@@ -12,8 +16,8 @@ function createBox(width, height, depth, paramColor, shadows){
 };
 
 function createText(){
-	var shape = new THREE.TextGeometry("Game Over", {font: font, size:0.05, height:0.02});
-	var wrapper = new THREE.MeshLambertMaterial({color: 0x00ff00});
+	var shape = new THREE.TextGeometry("Nested Loop Join", {font: font, size:0.05, height:0.02});
+	var wrapper = new THREE.MeshLambertMaterial({color: 0x49393B});
 	var words = new THREE.Mesh(shape, wrapper);
 	shape.computeBoundingBox();
     words.textWidth = shape.boundingBox.max.x - shape.boundingBox.min.x;

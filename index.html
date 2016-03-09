@@ -80,6 +80,7 @@ WebVRConfig = {
 <script src="node_modules/three/examples/js/utils/FontUtils.js"></script>
 <script src="node_modules/three/src/loaders/FontLoader.js"></script>
 <script src="threex.dynamictexture.js"></script>
+<script src="threex.dynamictext2dobject.js"></script>
 
 <!--
   VRControls.js acquires positional information from connected VR devices and applies the transformations to a three.js camera object.
@@ -151,6 +152,15 @@ WebVRConfig = {
 	var nlj = null;
 	var nljUI = null;
 
+	// collect all available easing in TWEEN library
+	var easings	= {};
+	Object.keys(TWEEN.Easing).forEach(function(family){
+		Object.keys(TWEEN.Easing[family]).forEach(function(direction){
+			var name	= family+'.'+direction;
+			easings[name]	= name;
+		});
+	});
+
 	//derived parameters
 	tableParams.leftEdge = -tableParams.width/2;
 	tableParams.rightEdge = tableParams.width/2;
@@ -199,18 +209,56 @@ WebVRConfig = {
 		} );
 	};
 
-	function initAlgorithm(){
-		nlj = new NestedLoopJoinAlgorithm(20,32,4);
-		nlj.randomInit(4,12);
-
-
+	function initAlgorithm(rSize, sSize, blockSize){
+		nlj = new NestedLoopJoinAlgorithm(rSize,sSize,blockSize);
+		nlj.randomInit(rSize,sSize);
 	};
 
+	function initAlgorithmUI(){
+		nljUI = new NestedLoopJoinUI(nlj, tableParams.tableTop);
+		nljUI.constructCubes();
+		nljUI.addCubes(scene);
+
+		var pDynamicTexture	= new THREEx.DynamicTexture(1600,512)
+		
+		// use .drawImage on the texture
+		var url		= 'pseudocode.png'
+		var image	= document.createElement('img')
+		image.src	= url
+		image.addEventListener('load', function(){
+			pDynamicTexture.drawImage(image, 0, 0)
+		});
+		var pseuodoCodeGeometry	= new THREE.CubeGeometry( 2, 0.8, 0.01);
+		var pseuodoCodeMaterial	= new THREE.MeshBasicMaterial({
+			map	: pDynamicTexture.texture
+		})
+		var pseuodoCode	= new THREE.Mesh( pseuodoCodeGeometry, pseuodoCodeMaterial );
+		pseuodoCode.position.z = tableParams.farEdge+0.25;
+		pseuodoCode.position.y = -0.2;
+		pseuodoCode.position.x = 0;
+		scene.add( pseuodoCode );
+	}
+
 	function initUI(){
+
 		UI = new UIFramework();
 		var nextButton = new UIButton("Next", -0.2, tableParams.closeEdge -tableParams.depth/10, 0.14,0.07);
-		nextButton.setOnClick(progress.bind(this, nlj));
+		nextButton.setOnClick(progress.bind(this, nlj, nljUI));
 		UI.addButton(nextButton);
+
+		var increaseR = new UIButton("RSize+", 0.15, tableParams.closeEdge -tableParams.depth/8, 0.14,0.07);
+		increaseR.setOnClick(resetScene.bind(this, "r", 1));
+		UI.addButton(increaseR);
+
+		var increaseS = new UIButton("SSize+", 0.35, tableParams.closeEdge -tableParams.depth/8, 0.14,0.07);
+		increaseS.setOnClick(resetScene.bind(this, "s", 1));
+		UI.addButton(increaseS);
+
+		var increaseBlock = new UIButton("Block Size+", 0.55, tableParams.closeEdge -tableParams.depth/8, 0.14,0.07);
+		increaseBlock.setOnClick(resetScene.bind(this, "block", 1));
+		UI.addButton(increaseBlock);
+
+		//UI.addButton(decreaseR)
 
 
 		for(var i = 0; i < UI.buttonGrid.length; ++i) {
@@ -222,35 +270,142 @@ WebVRConfig = {
 			button.position.z = (b.topEdge + b.bottomEdge)/2;
 			scene.add(button);
 		}
-
-		nljUI = new NestedLoopJoinUI(nlj, tableParams.tableTop);
-		nljUI.constructCubes();
-		nljUI.addCubes(scene);
+		
 		console.log("ui finished");
-
 	};
+
+	var rDemoSize = 8;
+	var sDemoSize = 8;
+	var blockDemoSize = 4;
 
 	initGeometry();
-	initAlgorithm();
+	initAlgorithm(rDemoSize,sDemoSize,blockDemoSize);
+	initAlgorithmUI();
 	initUI();
 
+	function resetScene(value, delta){
 
-	function progress(algo) {
-		if(algo.changeList.length > 0) {
-			console.log("applying changes");
-			algo.applyChanges();
-		} else {
-			console.log("calculating");
-			algo.next();
+		var cursorX = cursor.position.x;
+		var cursorZ = cursor.position.z;
+
+		for( var i = scene.children.length - 1; i >= 0; i--) { obj = scene.children[i];
+     	scene.remove(obj);}
+
+		if(value == "r") {
+			console.log(nlj);
+			rDemoSize += delta;
 		}
-		animateChanges(algo);
+		if(value == "s") {
+			console.log(nlj);
+			sDemoSize += delta;
+		}
+		if(value == "block") {
+			console.log(nlj);
+			blockDemoSize += delta;
+		}
+
+		initGeometry();
+		initAlgorithm(rDemoSize, sDemoSize, blockDemoSize);
+		initAlgorithmUI();
+		initUI();
+
+		cursor.position.x = cursorX;
+		cursor.position.z = cursorZ;
+	}
+
+	function progress(algo, ui) {	
+		console.log("calculating");
+		var all = TWEEN.getAll();
+		if(all.length > 0) {
+			for(var t = 0; t < all.length; ++t) {
+				console.log(all[t]);
+				all[t].end();
+			}
+			return;
+		}
+
+
+		algo.next();
+		ui.refreshCounters();
+		if(algo.changeList.length > 0) {
+			animateChanges(algo, ui, 2000);
+		} else {
+			refreshForChanges(algo, ui);
+		}
 	};
 
-	function animateChanges(algo){
+	function animateChanges(algo, ui, time){
+		var firstChange = true;
+		var tweens = [];
+		for (var i = 0; i < algo.changeList.length; ++i) {
+			var change = algo.changeList[i];
+			if(change.type == "write") {
+				makeChanges(algo,ui);
+			}
+			if(change.type!="combine"){
+				var fromUI = ui.getRunUI(change.fromdb);
+				var fromBlock = fromUI.getBlock(change.fromblock);
+
+				var orphanCubes = [];
+				for(var i = 0; i < fromBlock.entries.length; ++i) {
+					orphanCubes.push(fromBlock.entries[i].createOrphanCube(fromUI));
+					scene.add(orphanCubes[i]);
+				};
+
+				var toUI = ui.getRunUI(change.todb);
+				var toBlock = toUI.getBlock(change.toblock);
+
+				for(var i = 0; i < toBlock.entries.length; ++i) {
+					// var update	= function(){
+					// 	this.position.x = current.x;
+					// }
+					// update.bind(orphanCubes[i]);
+					var tweenHead	= new TWEEN.Tween(orphanCubes[i].position)
+						.to({
+							x: toBlock.entries[i].cube.position.x, 
+							y: toBlock.entries[i].cube.position.y,
+							z: toBlock.entries[i].cube.position.z,
+						}, time)
+						.easing(TWEEN.Easing.Exponential.InOut);
+					tweens.push(tweenHead);
+				}
+			}
+		}
+		if(tweens.length == 0){
+			makeChanges(algo,ui);
+			return;
+		}
+		for(var i = 0; i < tweens.length; ++i) {
+			if(firstChange) {
+				tweens[i].onComplete(makeChanges.bind(this, algo, ui));
+				firstChange = false;
+			}
+			tweens[i].start();
+		}
+	}
+
+	function makeChanges(algo, ui){
+		algo.applyChanges();
+		refreshForChanges(algo, ui);
+		console.log("clear changes");
+		algo.clearChanges();
+	};
+
+	function refreshForChanges(algo, ui){
 		for(var i = 0; i < algo.changeList.length; ++i) {
+			var change = algo.changeList[i];
+			if(change.type != "combine") {
+				ui.refreshBlock(
+					change.todb,
+					change.toblock);
+			} else {
+				ui.refreshBlock(
+					change.changeDestination, 
+					Math.floor(change.changeIndex/change.changeDestination.getBlockSize()));
+			}
 			console.log("animate change!");
 		};
-
+		ui.refreshCursors();
 	};
 
 	// Request animation frame loop function
@@ -277,21 +432,10 @@ WebVRConfig = {
 
 	// Reset the position sensor when 'z' pressed.
 	function onKey(event) {
-	  if (event.keyCode == 90) { // z
-	    controls.resetSensor();
-	  }
+	  // if (event.keyCode == 90) { // z
+	  //   controls.resetSensor();
+	  // }
 	}
-
-
-	
-	function makeText(words, locationX, locationY, locationZ, size, height){
-		if(size === undefined) {
-			size = 0.05;
-		}
-		if(height === undefined) {
-			height = 0.02;
-		}
-	};
 
 	function keyUpHandler(event){
 		var keyCode = ('which' in event) ? event.which : event.keyCode;

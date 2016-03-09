@@ -52,7 +52,7 @@ DataEntry.combine = function(de1, de2) {
 	for(var key in d2) {
 		obj[key] = d2[key];
 	}
-	return new DataEntry(obj);
+	return obj;
 };
 
 var DataRun = function(object, blockSize){
@@ -81,8 +81,8 @@ DataRun.prototype.getDataEntry = function(index) {
 	return this.data[index];
 };
 
-DataRun.prototype.setDataEntry = function(index, dataEntry){
-	this.data[index] = dataEntry;
+DataRun.prototype.setDataEntry = function(index, data){
+	this.data[index].data = JSON.parse(JSON.stringify(data));
 };	
 
 DataRun.prototype.blockForData = function(dataNum){
@@ -155,8 +155,12 @@ Algorithm.prototype.next = function(){
 
 Algorithm.prototype.applyChanges = function() {
 	for(var i = 0; i < this.changeList.length; ++i) {
+		console.log("change applied!");
 		applyChange(this.changeList[i]);
 	}
+}
+
+Algorithm.prototype.clearChanges = function() {
 	this.changeList = [];
 }
 
@@ -171,6 +175,7 @@ var NestedLoopJoinAlgorithm = function(rSize, sSize, blockSize, optimized) {
 	this.finish = false;
 
 	this.buffer = new DataRun(blockSize*3, blockSize);
+	this.result = new DataRun(Math.max(rSize, sSize), blockSize);
 
 	if(optimized === undefined){
 		optimized = false;
@@ -178,11 +183,13 @@ var NestedLoopJoinAlgorithm = function(rSize, sSize, blockSize, optimized) {
 		this.optimized = optimized;
 	}
 
-	this.rIndex = 0;
-	this.sIndex = 0;
+	this.rIndex = -1;
+	this.sIndex = -1;
 	this.writeIndex = 0;
 	this.rBlockIndex = -1;
 	this.sBlockIndex = -1;
+	this.compareRIndex = -1;
+	this.compareSIndex = -1;
 };
 
 NestedLoopJoinAlgorithm.prototype = Object.create(Algorithm.prototype); // See note below
@@ -210,8 +217,10 @@ NestedLoopJoinAlgorithm.prototype.tupleR = function(){
 	if(this.optimized) {
 
 	} else {
+
+		this.rIndex++;
 		if(this.rIndex >= this.r.getSize()) {
-			this.rIndex = 0;
+			this.rIndex = -1;
 			this.finish = true;
 			return null;
 		}
@@ -222,9 +231,10 @@ NestedLoopJoinAlgorithm.prototype.tupleR = function(){
 		if(newRBlockIndex > this.rBlockIndex) {
 			this.rBlockIndex = newRBlockIndex;
 			this.changeList.push(createChange("read", this.r, this.rBlockIndex, this.buffer, 0));
+			this.ioCount++;
 		}
 
-		this.rIndex++;
+		//this.rIndex++;
 		return this.tupleS;
 	}
 };
@@ -233,6 +243,8 @@ NestedLoopJoinAlgorithm.prototype.tupleS = function(){
 	if(this.optimized){
 
 	} else {
+
+		this.sIndex++;
 		if(this.sIndex >= this.s.getSize()) {
 			this.sIndex = 0;
 			return this.tupleR;
@@ -245,9 +257,10 @@ NestedLoopJoinAlgorithm.prototype.tupleS = function(){
 		if(newSBlockIndex != this.sBlockIndex) {
 			this.sBlockIndex = newSBlockIndex;
 			this.changeList.push(createChange("read", this.s, this.sBlockIndex, this.buffer, 1));
+			this.ioCount++;
 		}
 
-		this.sIndex++;
+		// this.sIndex++;
 		return this.compare;
 	}
 };
@@ -258,13 +271,15 @@ NestedLoopJoinAlgorithm.prototype.compare = function() {
 	} else {
 		this.lineNum = 3;
 
-		var rIndexInBuffer = 0+(this.rIndex-1)%this.r.blockSize;
+		var rIndexInBuffer = 0+(this.rIndex)%this.r.blockSize;
+		this.compareRIndex = rIndexInBuffer;
 		var rEntry = this.buffer.getDataEntry(rIndexInBuffer);
-		var sIndexInBuffer = 1*this.buffer.blockSize+(this.sIndex-1)%this.s.blockSize;
+		var sIndexInBuffer = 1*this.buffer.blockSize+(this.sIndex)%this.s.blockSize;
+		this.compareSIndex = sIndexInBuffer;
 		var sEntry = this.buffer.getDataEntry(sIndexInBuffer);
 
 		if(rEntry.getDataByKey("id") == sEntry.getDataByKey("id")) {
-			console.log("match found");
+			this.lineNum = 4;
 			this.changeList.push(createChange("combine", 
 				this.buffer, rIndexInBuffer, 
 				this.buffer, sIndexInBuffer, 
@@ -276,6 +291,7 @@ NestedLoopJoinAlgorithm.prototype.compare = function() {
 			this.writeIndex = 0;
 			this.changeList.push(createChange("write", this.buffer, 2, this.result, this.resultBlockIndex));
 			this.resultBlockIndex++;
+			this.ioCount++;
 		}
 
 		return this.tupleS;
@@ -320,7 +336,7 @@ function applyChange(change){
 			}
 			change.todb.setDataEntry(
 				change.toblock*blockSize + i, 
-				DataEntry.clone(change.fromdb.getDataEntry(change.fromblock*blockSize + i)));
+				change.fromdb.getDataEntry(change.fromblock*blockSize + i).data);
 		}
 	} else if (change.type == "combine") {
 		change.changeDestination.setDataEntry(change.changeIndex, 

@@ -23,6 +23,7 @@ function progress() {
 	if(nlj.changeList.length > 0) {
 		console.log("applying changes");
 		nlj.applyChanges();
+		nlj.clearChanges();
 	} else {
 		console.log("calculating");
 		nlj.next();
